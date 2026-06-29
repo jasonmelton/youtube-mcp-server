@@ -5,13 +5,14 @@ A Model Context Protocol (MCP) server implementation for YouTube, enabling AI la
 
 ## Available Tools
 
-The server currently exposes 10 MCP tools.
+The server currently exposes 11 MCP tools.
 
 | Tool | Description | Required Parameters | Optional Parameters |
 |------|-------------|---------------------|---------------------|
 | `videos_getVideo` | Get detailed information about a YouTube video | `videoId` | `parts` |
 | `videos_searchVideos` | Search for videos on YouTube | `query` | `maxResults`, `order`, `publishedAfter`, `publishedBefore`, `channelId`, `uniqueChannels`, `channelMinSubscribers`, `channelMaxSubscribers`, `channelLastUploadAfter`, `channelLastUploadBefore`, `creatorOnly`, `sortBy` |
-| `transcripts_getTranscript` | Get the transcript of a YouTube video | `videoId` | `language` |
+| `transcripts_getTranscript` | Get the transcript of a YouTube video (via yt-dlp) | `videoId` | `language` |
+| `downloads_downloadMedia` | Download a video or extract its audio via yt-dlp (returns base64-encoded media) | `videoId` | `format`, `quality` |
 | `channels_getChannel` | Get information about a YouTube channel | `channelId` | None |
 | `channels_getChannels` | Get information about multiple YouTube channels | `channelIds` | `parts`, `includeLatestUpload` |
 | `channels_searchChannels` | Search for YouTube channels by handle, name, or query | `query` | `maxResults`, `order`, `channelType`, `minSubscribers`, `maxSubscribers`, `lastUploadAfter`, `lastUploadBefore`, `creatorOnly`, `sortBy` |
@@ -42,6 +43,20 @@ The server currently exposes 10 MCP tools.
 #### `transcripts_getTranscript`
 - `videoId` (`string`): The YouTube video ID.
 - `language` (`string`, optional): Transcript language code. Falls back to `YOUTUBE_TRANSCRIPT_LANG` or `en`.
+
+The response reports the `language` actually fetched and a `kind` field (`human`
+for author-provided captions, `auto` for auto-generated ones). Requires `yt-dlp`
+on the host.
+
+#### `downloads_downloadMedia`
+- `videoId` (`string`): The YouTube video ID.
+- `format` (`string`, optional): `mp4` (default), `mp3`, or `wav`. Audio formats (`mp3`/`wav`) require `ffmpeg`.
+- `quality` (`string`, optional): `highest` (default), `lowest`, `1080p`, `720p`, `480p`, or `360p`. Ignored for audio formats.
+
+Returns the media inline as base64 plus metadata (`filename`, `sizeBytes`). The
+file is written to a per-request temp directory and removed after the response.
+Downloads larger than `YTDLP_MAX_DOWNLOAD_BYTES` (default 50 MB) are rejected.
+Requires `yt-dlp` on the host.
 
 #### `channels_getChannel`
 - `channelId` (`string`): The YouTube channel ID.
@@ -84,6 +99,15 @@ Responses now include:
 #### `playlists_getPlaylistItems`
 - `playlistId` (`string`): The YouTube playlist ID.
 - `maxResults` (`number`, optional): Maximum number of playlist items to return.
+
+## Prerequisites
+
+- Node.js (ESM, Node 18+).
+- [`yt-dlp`](https://github.com/yt-dlp/yt-dlp) on `PATH` (or set `YTDLP_PATH`) —
+  required for `transcripts_getTranscript` and `downloads_downloadMedia`. If the
+  binary is missing the server returns a clear, actionable error.
+- [`ffmpeg`](https://ffmpeg.org/) on `PATH` — required for audio downloads
+  (`mp3`/`wav`) and for merged-format video.
 
 ## Installation
 
@@ -145,8 +169,13 @@ Set the following environment variables:
 * `YOUTUBE_API_KEY2`: Secondary fallback API key
 * `YOUTUBE_API_KEY3`: Third fallback API key
 * `YOUTUBE_TRANSCRIPT_LANG`: Default language for transcripts (optional, defaults to 'en')
+* `YTDLP_PATH`: Path to the `yt-dlp` binary (optional, defaults to `yt-dlp` on `PATH`)
+* `YTDLP_MAX_DOWNLOAD_BYTES`: Max size for `downloads_downloadMedia` (optional, defaults to 50 MB)
+* `YTDLP_DOWNLOAD_TIMEOUT_MS`: Timeout for a media download (optional, defaults to 300000)
 
 At least one of `YOUTUBE_API_KEY`, `YOUTUBE_API_KEY2`, or `YOUTUBE_API_KEY3` must be set. When a request fails because a key has exhausted its quota, the server retries the same request with the next configured key.
+
+Transcript retrieval and downloads are powered by `yt-dlp` and do not consume API quota, but the server still requires an API key for the other tools (see Prerequisites).
 
 ### Using with VS Code
 

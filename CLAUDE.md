@@ -71,18 +71,31 @@ The project uses **ES modules** (ESNext) as configured in:
 | `src/index.ts` | Entry point, validates YOUTUBE_API_KEY |
 | `src/server.ts` | MCP server setup and tool routing |
 | `src/services/video.ts` | Video lookup and search functionality |
-| `src/services/transcript.ts` | Video transcript retrieval |
+| `src/services/transcript.ts` | Video transcript retrieval (yt-dlp backend) |
+| `src/services/ytdlp.ts` | yt-dlp seam: subprocess runner, typed errors, videoId validation, arg builders, json3 parser |
+| `src/services/download.ts` | Media/audio download via yt-dlp |
 | `src/services/playlist.ts` | Playlist operations |
 | `src/services/channel.ts` | Channel information and video listing |
 | `src/types.ts` | TypeScript type definitions for all parameters |
+
+## Host Prerequisites
+
+- `yt-dlp` must be on `PATH` (or set `YTDLP_PATH`) — it is the backend for
+  `transcripts_getTranscript` and `downloads_downloadMedia`. A missing binary
+  surfaces a clear `YtDlpNotInstalledError`.
+- `ffmpeg` must be on `PATH` for audio downloads (`mp3`/`wav`) and merged-format
+  video.
 
 ## Configuration
 
 **Required Environment Variable:**
 - `YOUTUBE_API_KEY`: Your YouTube Data API v3 key (must be set before starting the server)
 
-**Optional Environment Variable:**
+**Optional Environment Variables:**
 - `YOUTUBE_TRANSCRIPT_LANG`: Default language for transcripts (defaults to 'en')
+- `YTDLP_PATH`: Path to the `yt-dlp` binary (defaults to `yt-dlp` on `PATH`)
+- `YTDLP_MAX_DOWNLOAD_BYTES`: Max size for `downloads_downloadMedia` (defaults to 50 MB)
+- `YTDLP_DOWNLOAD_TIMEOUT_MS`: Timeout for a media download (defaults to 300000)
 
 ## Available Tools
 
@@ -90,7 +103,8 @@ The MCP server exposes these tools to clients:
 
 - `videos_getVideo`: Get detailed video information
 - `videos_searchVideos`: Search for videos
-- `transcripts_getTranscript`: Retrieve video transcript
+- `transcripts_getTranscript`: Retrieve video transcript (via yt-dlp; reports the actual `language` and a `human`/`auto` `kind`)
+- `downloads_downloadMedia`: Download a video or extract audio via yt-dlp (returns base64-encoded media)
 - `channels_getChannel`: Get channel information
 - `channels_listVideos`: List videos from a channel
 - `playlists_getPlaylist`: Get playlist details
@@ -115,4 +129,9 @@ The project was recently migrated to ES modules to fix compatibility issues with
 - Lazy initialization of YouTube client prevents API key validation errors until tools are actually called
 - The services handle errors gracefully and return error messages to the MCP client
 - Response content is JSON-stringified for transmission to the client
-- No tests are currently configured in the project
+- Tests run on Vitest (`npm test`). Pure yt-dlp helpers (arg builders, `videoId`
+  validation, json3 parsing) are unit-tested in `src/services/*.test.ts`; the
+  production `tsc` build excludes `*.test.ts`
+- Transcripts and downloads shell out to `yt-dlp` via `execFile` with array args
+  (never a shell string), capturing stdout/stderr so yt-dlp output never corrupts
+  the MCP stdio channel; each request uses a temp dir cleaned up in `finally`

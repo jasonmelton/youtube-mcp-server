@@ -60,6 +60,43 @@ export interface SearchTranscriptParams {
 }
 
 /**
+ * A single transcript cue. offset/duration are in milliseconds.
+ */
+export interface TranscriptLine {
+  text: string;
+  offset: number;   // milliseconds
+  duration: number; // milliseconds
+}
+
+/**
+ * Whether captions were human-authored or auto-generated.
+ */
+export type TranscriptKind = 'human' | 'auto';
+
+/**
+ * Transcript result. Preserves the locked { videoId, language, transcript }
+ * contract; `kind` is additive.
+ */
+export interface TranscriptResult {
+  videoId: string;
+  language: string;            // language ACTUALLY fetched
+  kind: TranscriptKind;        // human captions vs auto-generated
+  transcript: TranscriptLine[];
+}
+
+/**
+ * Media/audio download parameters (yt-dlp backend).
+ */
+export type DownloadFormat = 'mp4' | 'mp3' | 'wav';
+export type DownloadQuality = 'highest' | 'lowest' | '1080p' | '720p' | '480p' | '360p';
+
+export interface DownloadMediaParams {
+  videoId: string;
+  format?: DownloadFormat;
+  quality?: DownloadQuality;
+}
+
+/**
  * Channel parameters
  */
 export interface ChannelParams {

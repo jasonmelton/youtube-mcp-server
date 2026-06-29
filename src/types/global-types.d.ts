@@ -41,41 +41,6 @@ declare namespace google {
   }
 }
 
-// YouTube Transcript
-declare module 'youtube-transcript' {
-  export interface TranscriptLine {
-    text: string;
-    offset: number;
-    duration: number;
-  }
-
-  export class YoutubeTranscript {
-    static fetchTranscript(videoId: string): Promise<TranscriptLine[]>;
-  }
-
-  export default YoutubeTranscript;
-}
-
-// YTDL Core
-declare module 'ytdl-core' {
-  export interface VideoInfo {
-    videoDetails: {
-      title: string;
-      lengthSeconds: string;
-      thumbnail: {
-        thumbnails: Array<{url: string}>
-      };
-    };
-  }
-
-  function ytdl(url: string, options?: any): NodeJS.ReadableStream;
-  namespace ytdl {
-    export function getInfo(url: string): Promise<VideoInfo>;
-  }
-
-  export = ytdl;
-}
-
 // Extend fs/promises
 declare module 'fs/promises' {
   export function createReadStream(path: string): NodeJS.ReadableStream;

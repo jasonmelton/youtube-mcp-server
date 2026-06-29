@@ -28,6 +28,7 @@
   ],
   "exclude": [
     "node_modules",
-    "src/functions/**/*"
+    "src/functions/**/*",
+    "src/**/*.test.ts"
   ]
 }
