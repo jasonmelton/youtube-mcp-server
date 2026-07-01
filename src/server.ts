@@ -11,6 +11,7 @@ import { VideoService } from './services/video.js';
 import { TranscriptService } from './services/transcript.js';
 import { PlaylistService } from './services/playlist.js';
 import { ChannelService } from './services/channel.js';
+import { DownloadService } from './services/download.js';
 import {
     VideoParams,
     SearchParams,
@@ -22,6 +23,7 @@ import {
     CreatorDiscoveryParams,
     PlaylistParams,
     PlaylistItemsParams,
+    DownloadMediaParams,
 } from './types.js';
 
 function safeSerialize(value: unknown, maxLength = 4000) {
@@ -79,6 +81,7 @@ function createMcpServer() {
     const transcriptService = new TranscriptService();
     const playlistService = new PlaylistService();
     const channelService = new ChannelService();
+    const downloadService = new DownloadService();
 
     server.setRequestHandler(ListToolsRequestSchema, async () => {
         console.log('[MCP] list_tools requested');
@@ -180,6 +183,30 @@ function createMcpServer() {
                             language: {
                                 type: 'string',
                                 description: 'Language code for the transcript',
+                            },
+                        },
+                        required: ['videoId'],
+                    },
+                },
+                {
+                    name: 'downloads_downloadMedia',
+                    description: 'Download a YouTube video or extract its audio via yt-dlp (returns base64-encoded media). Requires yt-dlp on the host; audio formats also require ffmpeg.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            videoId: {
+                                type: 'string',
+                                description: 'The YouTube video ID',
+                            },
+                            format: {
+                                type: 'string',
+                                enum: ['mp4', 'mp3', 'wav'],
+                                description: 'Output format (default mp4)',
+                            },
+                            quality: {
+                                type: 'string',
+                                enum: ['highest', 'lowest', '1080p', '720p', '480p', '360p'],
+                                description: 'Video quality (ignored for audio formats; default highest)',
                             },
                         },
                         required: ['videoId'],
@@ -407,6 +434,9 @@ function createMcpServer() {
                     break;
                 case 'transcripts_getTranscript':
                     result = await transcriptService.getTranscript(args as unknown as TranscriptParams);
+                    break;
+                case 'downloads_downloadMedia':
+                    result = await downloadService.downloadMedia(args as unknown as DownloadMediaParams);
                     break;
                 case 'channels_getChannel':
                     result = await channelService.getChannel(args as unknown as ChannelParams);
